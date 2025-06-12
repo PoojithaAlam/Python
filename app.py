@@ -1,52 +1,44 @@
-import streamlit as st
-import pandas as pd
 import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.linear_model import LinearRegression
+import pandas as pd
+import streamlit as st
+import plotly.express as px
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import LinearRegression
 
-st.title("🏠 California Housing Price Predictor")
-st.write("Using the California Housing dataset from Scikit-learn")
+# ---------- Generate Fake House Data ----------
+def generate_house_data(n_samples=100):
+    np.random.seed(50)
+    size = np.random.normal(1400, 500, n_samples)
+    price = 50 * size + np.random.normal(0, 50000, n_samples)
+    return pd.DataFrame({'size': size, 'price': price})
 
-# Load dataset
-housing = fetch_california_housing(as_frame=True)
-df = housing.frame
-feature_names = housing.feature_names
-target_name = housing.target_names[0]
+# ---------- Train Model ----------
+def train_model():
+    df = generate_house_data(n_samples=100)
+    x = df[['size']]
+    y = df['price']
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+    model = LinearRegression()
+    model.fit(x_train, y_train)
+    return model, df
 
-st.subheader("📄 Dataset Preview")
-st.write(df.head())
+# ---------- Streamlit UI ----------
+st.title("🏡 House Price Predictor")
+st.write("This app predicts house prices based on their size (sq. ft). The data is randomly generated.")
 
-# User feature selection
-st.sidebar.title("🛠 Feature Inputs")
-input_features = {}
-for feature in feature_names:
-    val = st.sidebar.slider(
-        f"{feature}", 
-        float(df[feature].min()), 
-        float(df[feature].max()), 
-        float(df[feature].mean())
-    )
-    input_features[feature] = val
+# Train the model
+model, df = train_model()
 
-# Train model
-X = df[feature_names]
-y = df['MedHouseVal']
+# Show a plot of the data
+st.subheader("📊 Generated Data")
+fig = px.scatter(df, x='size', y='price', title='Randomly Generated House Data')
+st.plotly_chart(fig)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-model = LinearRegression()
-model.fit(X_train, y_train)
+# Get user input
+st.subheader("🔢 Enter House Size")
+input_size = st.number_input("House size (sq. ft)", min_value=300, max_value=5000, value=1500)
 
-# Prediction
-input_df = pd.DataFrame([input_features])
-prediction = model.predict(input_df)[0]
-
-st.subheader("🏷️ Prediction Result")
-st.success(f"Estimated Median House Value: ${prediction * 100000:,.2f}")
-
-# Optional: Show metrics
-st.subheader("📉 Model Performance")
-y_pred = model.predict(X_test)
-mse = mean_squared_error(y_test, y_pred)
-st.write(f"Mean Squared Error on test data: {mse:.4f}")
+# Make prediction
+if st.button("Predict Price"):
+    predicted_price = model.predict([[input_size]])[0]
+    st.success(f"Estimated House Price: ${predicted_price:,.2f}")
